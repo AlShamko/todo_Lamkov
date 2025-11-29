@@ -1,41 +1,49 @@
-import {useState} from 'react';
+import {useState, useEffect, useRef} from "react";
 import AddTaskForm from "./AddTaskForm.jsx";
 import SearchTaskForm from "./SearchTaskForm.jsx";
 import TodoInfo from "./TodoInfo.jsx";
 import TodoList from "./TodoList.jsx";
+import Button from "./Button.jsx";
 
 const Todo = () => {
 
-    const [tasks, setTasks] = useState([
-        {id: 'task-1', title: 'Sell milk', isDone: false},
-        {id: 'task-2', title: 'Buy milk', isDone: true},
-    ])
+    const [tasks, setTasks] = useState(() => {
+        const savedTasks = localStorage.getItem("tasks");
 
-    const [newTaskTitle, setNewTaskTitle] = useState('')
+        if (savedTasks) {
+            return JSON.parse(savedTasks);
+        }
+
+        return [
+            {id: "task-1", title: "Sell milk", isDone: false},
+            {id: "task-2", title: "Buy milk", isDone: true},
+        ];
+    });
+
+    const [newTaskTitle, setNewTaskTitle] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const newTaskInputRef = useRef(null);
+    const firstIncompleteTaskRef = useRef(null);
+    const firstIncompleteTaskId = tasks.find(({isDone}) => !isDone)?.id;
 
     const deleteAllTasks = () => {
-        const isConfirmed = confirm('Are you sure you want to delete all tasks?')
+        const isConfirmed = confirm("Are you sure you want to delete all tasks?");
 
         if (isConfirmed) {
-            setTasks([])
+            setTasks([]);
         }
-    }
+    };
 
     const deleteTask = (taskId) => {
-        setTasks(
-            tasks.filter(({id}) => id !== taskId)
-        )
-    }
+        setTasks(tasks.filter(({id}) => id !== taskId));
+    };
 
     const toggleTaskComplete = (taskId, isDone) => {
         setTasks(
-            tasks.map((task) => task.id === taskId ? {...task, isDone} : task)
-        )
-    }
-
-    const filterTasks = (query) => {
-
-    }
+            tasks.map((task) => (task.id === taskId ? {...task, isDone} : task))
+        );
+    };
 
     const addTask = () => {
         if (newTaskTitle.trim().length > 0) {
@@ -43,13 +51,28 @@ const Todo = () => {
                 id: crypto?.randomUUID() ?? Date.now().toString(),
                 title: newTaskTitle,
                 isDone: false,
-            }
+            };
 
-            setTasks([...tasks, newTask])
-            setNewTaskTitle('')
+            setTasks([...tasks, newTask]);
+            setNewTaskTitle("");
+            setSearchQuery("");
+            newTaskInputRef.current.focus();
         }
-    }
+    };
 
+    useEffect(() => {
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+    }, [tasks]);
+
+    useEffect(() => {
+        newTaskInputRef.current.focus();
+    })
+
+    const clearSearchQuery = searchQuery.trim().toLowerCase();
+
+    const filteredTasks = clearSearchQuery.length > 0
+        ? tasks.filter(({title}) => title.toLowerCase().includes(clearSearchQuery))
+        : null;
 
     return (
         <div className="todo">
@@ -58,20 +81,30 @@ const Todo = () => {
                 addTask={addTask}
                 newTaskTitle={newTaskTitle}
                 setNewTaskTitle={setNewTaskTitle}
+                newTaskInputRef={newTaskInputRef}
             />
-            <SearchTaskForm onSearchInput={filterTasks}/>
+            <SearchTaskForm
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+            />
             <TodoInfo
                 total={tasks.length}
                 done={tasks.filter(({isDone}) => isDone).length}
                 onDeleteAllButtonClick={deleteAllTasks}
             />
+            <Button onClick={() => firstIncompleteTaskRef.current?.scrollIntoView({behavior: "smooth"})}>
+                Show first incomplete task
+            </Button>
             <TodoList
                 tasks={tasks}
+                filteredTasks={filteredTasks}
+                firstIncompleteTaskRef={firstIncompleteTaskRef}
+                firstIncompleteTaskId={firstIncompleteTaskId}
                 onDeleteTaskButtonClick={deleteTask}
                 onTaskCompleteChange={toggleTaskComplete}
             />
         </div>
-    )
-}
+    );
+};
 
-export default Todo
+export default Todo;
